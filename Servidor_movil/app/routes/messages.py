@@ -1,23 +1,16 @@
 from fastapi import APIRouter, HTTPException
-from app.services.chat_service import fetch_messages, send_message
-from app.models import Message  # Your Pydantic model for Message
-from datetime import datetime
+from app.services.chat_service import save_message, get_messages
+from app.models import Message  # Modelo Pydantic para mensajes
 
 router = APIRouter()
 
 @router.get("/messages")
 async def messages():
     """
-    Retrieve stored messages and sort them by their timestamp.
-    (Assumes that the 'hora' field is stored in ISO8601 format.)
+    Obtener todos los mensajes almacenados.
     """
     try:
-        msgs = fetch_messages()
-        try:
-            # Sort messages by their 'hora' field (convert the ISO string to datetime)
-            msgs.sort(key=lambda m: datetime.fromisoformat(m['hora']))
-        except Exception as sort_error:
-            print("[Messages Route] Error sorting messages:", sort_error)
+        msgs = get_messages()  # Obtener mensajes desde MongoDB
         return msgs
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al obtener mensajes: {e}")
@@ -25,9 +18,9 @@ async def messages():
 @router.post("/send")
 async def send(msg: Message):
     """
-    Save a new message.
+    Guardar un nuevo mensaje.
     """
     try:
-        return send_message(msg.dict())
+        return save_message(msg.dict())  # Guardar mensaje en MongoDB
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al enviar mensaje: {e}")

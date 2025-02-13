@@ -1,34 +1,36 @@
 from fastapi import APIRouter, HTTPException
-from app.services.auth_service import register_user, verify_user_credentials
+from firebase_admin import auth
 from app.models import User
+from app.config import *
 
 router = APIRouter()
 
 @router.post("/register")
 async def register(user: User):
     """
-    Registrar un usuario con correo y contraseña.
+    Registrar un nuevo usuario en Firebase Authentication.
     """
     try:
-        # Crear el usuario
-        firebase_user = register_user(user.email, user.password)
-        return {
-            "id": firebase_user['id'],
-            "email": firebase_user['email'],
-        }
+        # Crear el usuario en Firebase Authentication
+        user_record = auth.create_user(
+            email=user.email,
+            password=user.password
+        )
+        return {"message": f"Usuario {user.email} registrado exitosamente", "uid": user_record.uid}
+    except auth.EmailAlreadyExistsError:
+        raise HTTPException(status_code=400, detail="Correo electrónico ya registrado")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al registrar usuario: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error al registrar usuario: {e}")
 
 @router.post("/login")
 async def login(user: User):
     """
-    Verificar las credenciales del usuario.
+    Iniciar sesión con Firebase Authentication.
     """
     try:
-        # Verificar correo y contraseña
-        is_valid_user = verify_user_credentials(user.email, user.password)
-        if not is_valid_user:
-            raise HTTPException(status_code=401, detail="Credenciales inválidas")
-        return {"message": "Inicio de sesión exitoso", "email": user.email}
+        user_record = auth.get_user_by_email(user.email)
+        return {"message": f"Usuario {user.email} logueado correctamente", "uid": user_record.uid}
+    except auth.UserNotFoundError:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al iniciar sesión: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error al iniciar sesión: {e}")
